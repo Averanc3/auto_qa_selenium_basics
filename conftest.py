@@ -13,14 +13,17 @@ def pytest_addoption(parser):
         "--headless", action="store_true"
     )
     parser.addoption(
-        "--url", default='http://192.168.0.63:8080/'
+        "--url", default='http://192.168.1.77:8080/'
     )
 
-@pytest.fixture()
+
+@pytest.fixture(scope='function')
 def base_url(request):
     url = request.config.getoption("--url")
     return url
-@pytest.fixture()
+
+
+@pytest.fixture(scope='function')
 def browser(request):
     browser_name = request.config.getoption("--browser")
     headless = request.config.getoption("--headless")
@@ -46,8 +49,6 @@ def browser(request):
         driver = webdriver.Edge(options=options)
 
     driver.set_window_size(1920, 1080)
-
-
 
     yield driver
 
