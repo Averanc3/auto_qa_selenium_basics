@@ -5,7 +5,6 @@ from selenium.webdriver.support import expected_conditions as EC
 
 
 class CataloguePage:
-
     def __init__(self, browser):
         self.browser = browser
         self.logger = browser.logger
@@ -16,11 +15,21 @@ class CataloguePage:
     LIST_VIEW_BUTTON = (By.ID, "button-list")
     ITEMS_AMOUNT_DROPDOWN = (By.ID, "input-limit")
 
-    @allure.step('Checking visibility of the necessary elements')
+    @allure.step("Checking visibility of the necessary elements")
     def check_elements_on_catalogue_page(self):
         self.logger.info("Checking elements on the catalogue page")
-        WebDriverWait(self.browser, 2).until(EC.visibility_of_element_located(self.SORT_BY_LABEL))
-        WebDriverWait(self.browser, 2).until(EC.visibility_of_element_located(self.GRID_VIEW_BUTTON))
-        WebDriverWait(self.browser, 2).until(EC.visibility_of_element_located(self.LIST_VIEW_BUTTON))
-        WebDriverWait(self.browser, 2).until(EC.visibility_of_element_located(self.ITEMS_AMOUNT_DROPDOWN))
-        WebDriverWait(self.browser, 2).until(EC.visibility_of_element_located(self.ADD_TO_WISH_LIST_BUTTON))
+        WebDriverWait(self.browser, 2).until(
+            EC.visibility_of_element_located(self.SORT_BY_LABEL)
+        )
+        WebDriverWait(self.browser, 2).until(
+            EC.visibility_of_element_located(self.GRID_VIEW_BUTTON)
+        )
+        WebDriverWait(self.browser, 2).until(
+            EC.visibility_of_element_located(self.LIST_VIEW_BUTTON)
+        )
+        WebDriverWait(self.browser, 2).until(
+            EC.visibility_of_element_located(self.ITEMS_AMOUNT_DROPDOWN)
+        )
+        WebDriverWait(self.browser, 2).until(
+            EC.visibility_of_element_located(self.ADD_TO_WISH_LIST_BUTTON)
+        )
