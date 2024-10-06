@@ -12,8 +12,10 @@ from selenium.webdriver.firefox.options import Options as FFOptions
 def pytest_addoption(parser):
     parser.addoption("--browser", default="ch", choices=["ch", "ff", "eg"])
     parser.addoption("--headless", action="store_true")
-    parser.addoption("--url", default="http://192.168.1.77:8080/")
+    parser.addoption("--url", default="http://192.168.1.77:8081/")
+    parser.addoption("--bv")
     parser.addoption("--log_level", action="store", default="INFO")
+    parser.addoption("--executor", action="store", default="192.168.1.77")
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -38,8 +40,10 @@ def browser(request):
     browser_name = request.config.getoption("--browser")
     headless = request.config.getoption("--headless")
     log_level = request.config.getoption("--log_level")
-
+    executor = request.config.getoption("--executor")
+    version = request.config.getoption("--bv")
     logger = logging.getLogger(request.node.name)
+    executor_url = f"http://{executor}:4444/status"
     logging.basicConfig(
         filename=f"logs/{request.node.name}.log",
         format="%(levelname)s %(message)s",
@@ -61,15 +65,31 @@ def browser(request):
 
     elif browser_name == "ff":
         options = FFOptions()
-        if headless:
-            options.add_argument("--headless")
-        driver = webdriver.Firefox(options=options)
+        # if headless:
+        #     options.add_argument("--headless")
+        # driver = webdriver.Firefox(options=options)
 
     elif browser_name == "eg":
         options = ChromeOptions()
-        if headless:
-            options.add_argument("headless=new")
-        driver = webdriver.Edge(options=options)
+        # if headless:
+        #     options.add_argument("headless=new")
+        # driver = webdriver.Edge(options=options)
+
+    else:
+        raise Exception
+
+    # capabilities = {
+    #     "browserVersion": version,
+    #     "enableVNC": False
+    # }
+    #
+    # for k, v in capabilities.items():
+    #     options.set_capability(k, v)
+    #
+    # driver = webdriver.Remote(
+    #     command_executor=executor_url,
+    #     options=options
+    # )
 
     driver.set_window_size(1920, 1080)
 
