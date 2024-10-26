@@ -24,8 +24,6 @@ def test_admin_add_product(browser, base_url):
     admin_page.check_if_logged_in()
     admin_page.open_products()
     admin_page.add_new_simple_product("dyson")
-    if True:
-        raise Exception
     alert_success = AlertSuccess(browser)
     alert_success.product_manipulation_success()
 
@@ -49,7 +47,3 @@ def test_admin_delete_product(browser, base_url):
     admin_page.delete_all_products()
     admin_page.search_by_product_model(product_model)
     admin_page.check_if_no_products_found()
-
-
-def test_failure1():
-    assert 0
