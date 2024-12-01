@@ -47,3 +47,5 @@ def test_admin_delete_product(browser, base_url):
     admin_page.delete_all_products()
     admin_page.search_by_product_model(product_model)
     admin_page.check_if_no_products_found()
+
+

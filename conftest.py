@@ -1,7 +1,10 @@
 import allure
 import pytest
-import datetime
+from datetime import datetime
 import logging
+
+from request_models import ProjectTaskRequestBody
+from tests.gectaro_http_client import GectaroHttpClient
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -10,17 +13,21 @@ from selenium.webdriver.firefox.options import Options as FFOptions
 from selenium.webdriver.safari.options import Options as SafariOptions
 
 
+
 def pytest_addoption(parser):
     parser.addoption("--browser", default="ch", choices=["ch", "ff", "eg", "sf"])
     parser.addoption("--headless", action="store_true")
-    parser.addoption("--url", default="http://192.168.1.77:8081/")
-    parser.addoption("--bv")
+    parser.addoption("--url_ui", default="http://192.168.1.77:8081/", help="base url for UI")
+    parser.addoption("--url_api", default="https://api.gectaro.com", help="base url for API client")
+    parser.addoption("--bv", default='128.0', help="browser version")
     parser.addoption("--log_level", action="store", default="INFO")
-    parser.addoption("--executor", action="store", default="192.168.1.77")
+    parser.addoption("--executor", action="store", default="192.168.1.77", help='selenoid')
+    parser.addoption("--token", help="token for test API")
+    parser.addoption("--execution_type", default='local', choices=['local', 'remote'])
+
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
-# https://github.com/pytest-dev/pytest/issues/230#issuecomment-402580536
 def pytest_runtest_makereport(item, call):
     outcome = yield
     rep = outcome.get_result()
@@ -32,8 +39,8 @@ def pytest_runtest_makereport(item, call):
 
 @pytest.fixture(scope="function")
 def base_url(request):
-    url = request.config.getoption("--url")
-    return url
+    url_ui = request.config.getoption("--url_ui")
+    return url_ui
 
 
 @pytest.fixture(scope="function")
@@ -45,6 +52,8 @@ def browser(request):
     version = request.config.getoption("--bv")
     logger = logging.getLogger(request.node.name)
     executor_url = f"http://{executor}:4444/wd/hub"
+    execution_type = request.config.getoption('--execution_type')
+
     logging.basicConfig(
         filename=f"logs/{request.node.name}.log",
         format="%(levelname)s %(message)s",
@@ -53,28 +62,28 @@ def browser(request):
     )
 
     logger.info(
-        "===> Test %s started at %s" % (request.node.name, datetime.datetime.now())
+        "===> Test %s started at %s" % (request.node.name, datetime.now())
     )
 
     driver = None
+
 
     if browser == "ch":
         options = ChromeOptions()
         if headless:
             options.add_argument("--headless=new")
-        # driver = webdriver.Chrome(service=Service(), options=options)
+        if execution_type == 'local':
+            driver = webdriver.Chrome(service=Service(), options=options)
 
     elif browser == "ff":
         options = FFOptions()
-        # if headless:
-        #     options.add_argument("--headless")
-        # driver = webdriver.Firefox(options=options)
+        if execution_type == 'local':
+            driver = webdriver.Firefox(options=options)
 
     elif browser == "eg":
         options = ChromeOptions()
-        # if headless:
-        #     options.add_argument("headless=new")
-        # driver = webdriver.Edge(options=options)
+        if execution_type == 'local':
+            driver = webdriver.Edge(options=options)
 
     elif browser == "sf":
         options = SafariOptions()
@@ -83,27 +92,29 @@ def browser(request):
     else:
         raise Exception
 
-    capabilities = {
-        "browserVersion": version,
-        "selenoid:options":{
-            "enableVNC": False,
-            "enableVideo": False,
-            "enableLog": True,
-            "name": request.node.name
+    if execution_type == 'remote':
+
+        capabilities = {
+            "browserVersion": version,
+            "selenoid:options":{
+                "enableVNC": False,
+                "enableVideo": False,
+                "enableLog": True,
+                "name": request.node.name
+            }
         }
-    }
 
-    for k, v in capabilities.items():
-        options.set_capability(k, v)
+        for k, v in capabilities.items():
+            options.set_capability(k, v)
 
 
-    logger.info(
-        f"Starting on remote url {executor_url}"
-    )
-    driver = webdriver.Remote(
-        command_executor=executor_url,
-        options=options
-    )
+        logger.info(
+            f"Starting on remote url {executor_url}"
+        )
+        driver = webdriver.Remote(
+            command_executor=executor_url,
+            options=options
+        )
 
     driver.set_window_size(1920, 1080)
 
@@ -127,7 +138,65 @@ def browser(request):
             attachment_type=allure.attachment_type.HTML,
         )
 
-    logger.info("===> Test session ended at %s" % datetime.datetime.now())
+    logger.info("===> Test session ended at %s" % datetime.now())
     print("finalize")
 
     driver.quit()
+
+
+@pytest.fixture(scope="session")
+def token(request):
+    return request.config.getoption("--token")
+
+
+@pytest.fixture(scope="session")
+def url(request):
+    return request.config.getoption("--url_api")
+
+
+@pytest.fixture
+def client(token, url):
+    client = GectaroHttpClient(base_url=url, token=token)
+    yield client
+    # teardown
+
+
+@pytest.fixture
+def resource(client):
+    data = {
+        "name": "first_resource",
+        "needed_at": int(datetime.now().timestamp()),
+        "project_id": 80024,
+        "type": 1,
+        "volume": 5,
+    }
+
+    resource_id = client.post_projects_resources(data=data).json()["id"]
+
+    print(f"resource_id: {resource_id}")
+    yield resource_id
+
+    client.delete_projects_resources(resource_id)
+
+
+@pytest.fixture
+def resource_request(client, request, resource):
+    data = ProjectTaskRequestBody(
+        project_tasks_resource_id=resource,
+        volume="5",
+        cost="5",
+        is_over_budget=True,
+        needed_at=int(datetime.now().timestamp()),
+    )
+
+    request_id = client.post_projects_resource_requests(data=data).json()["id"]
+    print(f"request_id: {request_id}")
+    yield request_id
+
+
+
+
+
+@pytest.fixture
+def is_over_budget(request):
+    return int(request.param)
